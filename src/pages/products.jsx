@@ -1,7 +1,14 @@
+import { useMemo, useState } from 'react'
 import ProductList from '../components/ProductList'
-import SidebarFilters from '../components/SidebarFilters' // Necesitarás crear este componente
+import SidebarFilters from '../components/SidebarFilters'
 
 export default function Products() {
+  const [filters, setFilters] = useState({ q: '', minPrice: '', maxPrice: '', brandText: '', sort: 'relevance' })
+
+  function updateFilters(partial) {
+    setFilters(prev => ({ ...prev, ...partial }))
+  }
+
   return (
     <main className="container py-4">
       
@@ -19,7 +26,7 @@ export default function Products() {
       <div className="row">
         
         {/* 1. BARRA LATERAL DE FILTROS (Sidebar) */}
-        <div className="col-lg-3">
+  <div className="col-lg-3">
           {/*
             Nota: Se utiliza 'col-lg-3' para que en dispositivos grandes,
             la barra lateral ocupe 3 de las 12 columnas.
@@ -29,26 +36,7 @@ export default function Products() {
               Filtros de Búsqueda
             </div>
             <div className="card-body">
-              {/* Aquí se incluye un componente real de filtros (Categoría, Precio, Marca) */}
-              <SidebarFilters /> 
-              
-              {/* Ejemplo de un filtro simple si aún no creas SidebarFilters */}
-              <div className="mb-3">
-                  <label className="form-label fw-bold">Categoría</label>
-                  <select className="form-select form-select-sm">
-                      <option>Todos</option>
-                      <option>Tarjetas de Video</option>
-                      <option>Monitores</option>
-                      <option>Procesadores</option>
-                  </select>
-              </div>
-
-              <div className="mb-3">
-                  <label className="form-label fw-bold">Precio (máx.)</label>
-                  <input type="range" className="form-range" min="0" max="1000" step="10" />
-                  <small className="text-muted">Max: $500.000</small>
-              </div>
-
+              <SidebarFilters filters={filters} onChange={updateFilters} />
             </div>
           </div>
 
@@ -68,7 +56,7 @@ export default function Products() {
           {/* Opciones de ordenamiento (Sort By) */}
           <div className="d-flex justify-content-end align-items-center mb-3">
             <span className="me-2 text-muted small">Ordenar por:</span>
-            <select className="form-select form-select-sm w-auto">
+            <select className="form-select form-select-sm w-auto" value={filters.sort} onChange={(e) => updateFilters({ sort: e.target.value })}>
               <option value="relevance">Relevancia</option>
               <option value="price-asc">Precio: Menor a Mayor</option>
               <option value="price-desc">Precio: Mayor a Menor</option>
@@ -77,7 +65,7 @@ export default function Products() {
           </div>
           
           {/* La lista real de productos */}
-          <ProductList limit={100} />
+          <ProductList limit={100} filters={filters} />
           
           {/* Paginación (Placeholder) */}
           <nav className="d-flex justify-content-center mt-5">

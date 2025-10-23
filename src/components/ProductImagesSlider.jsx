@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react'
 
+// Base de almacenamiento (Xano) para construir URLs absolutas desde rutas relativas
+const storageBase = (import.meta.env?.VITE_XANO_STORAGE_BASE || import.meta.env?.VITE_XANO_STORE_BASE || '').replace(/\/$/, '')
 
 function buildUrlFromPath(path) {
   if (!path) return null
   if (path.startsWith('http')) return path
   if (!storageBase) return path 
-  return storageBase.replace(/\/$/, '') + (path.startsWith('/') ? path : `/${path}`)
+  return storageBase + (path.startsWith('/') ? path : `/${path}`)
 }
 
 export default function ProductImagesSlider({ images = [], alt = 'Imagen', aspect = '4/3' }) {

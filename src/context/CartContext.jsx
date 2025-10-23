@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { getOrCreateCart, addCartProduct, listCartProducts, updateCartProduct, removeCartProduct } from '../api/xano'
+import { getOrCreateCart, addCartProduct, listCartProducts, updateCartProduct, removeCartProduct, getProduct } from '../api/xano'
 import { useAuth } from './AuthContext'
 
 const CartContext = createContext(null)
@@ -35,8 +35,17 @@ export function CartProvider({ children }) {
         const c = await getOrCreateCart(token)
         if (!mounted) return
         setCart(c)
-        const cps = await listCartProducts(token, c?.id)
+        let cps = await listCartProducts(token, c?.id)
         if (!mounted) return
+        // Enriquecer items con producto si no viene anidado
+        const needFetch = cps.filter(it => !it.product && it.product_id)
+        if (needFetch.length > 0) {
+          const uniqIds = [...new Set(needFetch.map(i => i.product_id))]
+          const fetched = await Promise.all(uniqIds.map(id => getProduct(id, token).catch(() => null)))
+          const map = new Map()
+          uniqIds.forEach((id, idx) => { if (fetched[idx]) map.set(id, fetched[idx]) })
+          cps = cps.map(it => it.product || !it.product_id ? it : { ...it, product: map.get(it.product_id) || it.product })
+        }
         setItems(cps || [])
       } catch (e) {
         console.error('Cart load error', e)
@@ -69,7 +78,16 @@ export function CartProvider({ children }) {
     }
     const added = await addCartProduct(token, currentCart.id, productId, quantity)
     try {
-      const cps = await listCartProducts(token, currentCart.id)
+      let cps = await listCartProducts(token, currentCart.id)
+      // Enriquecer si falta producto
+      const needFetch = cps.filter(it => !it.product && it.product_id)
+      if (needFetch.length > 0) {
+        const uniqIds = [...new Set(needFetch.map(i => i.product_id))]
+        const fetched = await Promise.all(uniqIds.map(id => getProduct(id, token).catch(() => null)))
+        const map = new Map()
+        uniqIds.forEach((id, idx) => { if (fetched[idx]) map.set(id, fetched[idx]) })
+        cps = cps.map(it => it.product || !it.product_id ? it : { ...it, product: map.get(it.product_id) || it.product })
+      }
       setItems(cps || [])
     } catch (e) {
       console.info('Could not refresh cart items after add', e?.message || e)
@@ -90,7 +108,15 @@ export function CartProvider({ children }) {
     }
     const updated = await updateCartProduct(token, itemId, quantity)
     try {
-      const cps = await listCartProducts(token, cart?.id)
+      let cps = await listCartProducts(token, cart?.id)
+      const needFetch = cps.filter(it => !it.product && it.product_id)
+      if (needFetch.length > 0) {
+        const uniqIds = [...new Set(needFetch.map(i => i.product_id))]
+        const fetched = await Promise.all(uniqIds.map(id => getProduct(id, token).catch(() => null)))
+        const map = new Map()
+        uniqIds.forEach((id, idx) => { if (fetched[idx]) map.set(id, fetched[idx]) })
+        cps = cps.map(it => it.product || !it.product_id ? it : { ...it, product: map.get(it.product_id) || it.product })
+      }
       setItems(cps || [])
     } catch (e) {
       console.info('Could not refresh cart items after update', e?.message || e)
@@ -107,7 +133,15 @@ export function CartProvider({ children }) {
     }
     await removeCartProduct(token, itemId)
     try {
-      const cps = await listCartProducts(token, cart?.id)
+      let cps = await listCartProducts(token, cart?.id)
+      const needFetch = cps.filter(it => !it.product && it.product_id)
+      if (needFetch.length > 0) {
+        const uniqIds = [...new Set(needFetch.map(i => i.product_id))]
+        const fetched = await Promise.all(uniqIds.map(id => getProduct(id).catch(() => null)))
+        const map = new Map()
+        uniqIds.forEach((id, idx) => { if (fetched[idx]) map.set(id, fetched[idx]) })
+        cps = cps.map(it => it.product || !it.product_id ? it : { ...it, product: map.get(it.product_id) || it.product })
+      }
       setItems(cps || [])
     } catch (e) {
       console.info('Could not refresh cart items after remove', e?.message || e)

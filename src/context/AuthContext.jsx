@@ -6,8 +6,11 @@ import axios from 'axios'
 // URLs base para los endpoints de Xano — leídas desde variables de entorno de Vite con fallback
 const AUTH_BASE = import.meta.env.VITE_XANO_AUTH_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:PDQSRKQT'
 const STORE_BASE = import.meta.env.VITE_XANO_STORE_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:3Xncgo9I'
+const MEMBERS_BASE = import.meta.env.VITE_XANO_MEMBERS_BASE || import.meta.env.VITE_XANO_ACCOUNT_BASE || ''
 // TTL de respaldo para tokens JWE sin 'exp' legible (por defecto 86400s)
 const TOKEN_TTL_SEC = 86400 // 24 horas en segundos
+// Lista opcional de emails admin (fallback mientras /auth/me se corrige)
+const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
 
 // Creamos el contexto de autenticación
 const AuthContext = createContext(null) // Contexto que compartirá usuario, token y acciones
@@ -83,6 +86,56 @@ export function AuthProvider({ children }) {
 
   // (Opcional) Si en algún momento necesitas buscar por email, agrega un endpoint dedicado en Xano.
 
+  // Normaliza y enriquece el usuario con banderas de admin si aplica
+  function normalizeUser(u) {
+    if (!u) return u
+    const email = (u.email || '').toLowerCase()
+    const isAdminByRole = u.role === 'admin' || u.is_admin === true
+    const isAdminByEnv = email && ADMIN_EMAILS.includes(email)
+    return { ...u, is_admin: isAdminByRole || isAdminByEnv, role: (isAdminByRole || isAdminByEnv) ? (u.role || 'admin') : u.role }
+  }
+
+  // Extrae el objeto usuario desde diferentes formas de respuesta
+  function extractUserPayload(meData) {
+    if (!meData) return null
+    // Backend actualizado: { user: { ... } }
+    if (meData.user && typeof meData.user === 'object') return meData.user
+    // Fall-back: si ya es el user directo
+    return meData
+  }
+
+  // Intenta obtener el perfil del usuario autenticado probando múltiples endpoints
+  async function getMeWithFallback(tkn) {
+    const bases = [AUTH_BASE, MEMBERS_BASE].filter(Boolean)
+    const paths = ['auth/me', 'me', 'account/me']
+    const tried = new Set()
+    for (const base of bases) {
+      for (const path of paths) {
+        const url = `${base}/${path}`
+        if (tried.has(url)) continue
+        tried.add(url)
+        try {
+          const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${tkn}` } })
+          const userObj = extractUserPayload(data)
+          if (userObj) return userObj
+        } catch (e) {
+          const status = e?.response?.status
+          // Si el token es inválido/expirado, cerrar sesión y redirigir a login
+          if (status === 401) {
+            try { await logoutAxios() } catch {}
+            // Redirigir inmediatamente a la página de inicio de sesión
+            try { window.location.assign('/login') } catch {}
+            // Re-lanzamos para cortar el flujo de login
+            throw e
+          }
+          // Continuamos intentando si es 404/401/500; si es otra cosa, también seguimos
+          continue
+        }
+      }
+    }
+    return null
+  }
+
   // Login usando Axios
   async function loginAxios({ email, password }) {
     try {
@@ -94,17 +147,15 @@ export function AuthProvider({ children }) {
       // Persistir token primero (esto disparará el efecto de expiración también)
       setToken(newToken)
 
-      // 2) Obtener datos del usuario autenticado
-      let me = null
-      try {
-        const { data: meData } = await axios.get(`${AUTH_BASE}/auth/me`, { headers: makeAuthHeader(newToken) })
-        me = meData
-      } catch (e) {
-        // Si el endpoint /auth/me no existe en tu Xano, al menos guarda un user mínimo
+      // 2) Obtener datos del usuario autenticado con fallback de endpoints
+      let me = await getMeWithFallback(newToken)
+      if (!me) {
+        // Si falla todo, usamos un user mínimo
         me = data?.user || data?.profile || { email }
       }
-      setUser(me)
-      return { token: newToken, user: me }
+  const normalized = normalizeUser(me)
+  setUser(normalized)
+  return { token: newToken, user: normalized }
     } catch (error) {
       console.error('Error de login:', error?.response?.data || error.message)
       throw error
@@ -113,9 +164,7 @@ export function AuthProvider({ children }) {
 
   // Logout usando Axios
   async function logoutAxios() {
-    // Intentamos notificar al backend del cierre de sesión
-    try { await axios.post(`${AUTH_BASE}/auth/logout`, {}, { headers: makeAuthHeader(token) }) } catch {}
-    // Limpiamos estados y almacenamiento
+    // Limpiamos estados y almacenamiento (evitamos 404 si no hay endpoint logout)
     setToken('') // Quitamos token
     setUser(null) // Quitamos usuario
     setExpiresAt(null) // Quitamos expiración
@@ -131,16 +180,12 @@ export function AuthProvider({ children }) {
       const { data } = await axios.post(`${AUTH_BASE}/auth/signup`, { name, email, password })
       const newToken = data?.authToken || data?.token || data?.jwt || data?.access_token || ''
       if (newToken) setToken(newToken)
-      // Intentar obtener /auth/me tras el signup
-      let me = null
-      try {
-        const { data: meData } = await axios.get(`${AUTH_BASE}/auth/me`, { headers: makeAuthHeader(newToken) })
-        me = meData
-      } catch {
-        me = data?.user || { name, email }
-      }
-      setUser(me)
-      return { token: newToken, user: me, raw: data }
+      // Intentar obtener perfil tras el signup
+      let me = await getMeWithFallback(newToken)
+      if (!me) me = data?.user || { name, email }
+  const normalized = normalizeUser(me)
+  setUser(normalized)
+  return { token: newToken, user: normalized, raw: data }
     } catch (err) {
       // Re-lanzamos para que la UI gestione el error
       throw err

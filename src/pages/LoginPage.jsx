@@ -21,11 +21,11 @@ export default function LoginPage() {
     e.preventDefault()
     setError(null); setSuccess(null); setLoading(true)
     try {
-      const { token, user } = await loginAxios({ email, password })
-      setSuccess(`Bienvenido ${user?.name || user?.email || 'usuario'}`)
-      console.log('Login successful', { token, user })
-      // Redirigir al home después de login exitoso
-      navigate('/')
+  const { token, user } = await loginAxios({ email, password })
+  setSuccess(`Bienvenido ${user?.name || user?.email || 'usuario'}`)
+  // Redirigir según rol si es admin
+  const isAdmin = user?.role === 'admin' || user?.is_admin === true
+  navigate(isAdmin ? '/admin' : '/')
     } catch (err) {
       console.error(err)
       setError(err?.response?.data?.message || err.message || 'Error al iniciar sesión')
@@ -36,11 +36,11 @@ export default function LoginPage() {
     e.preventDefault()
     setError(null); setSuccess(null); setLoading(true)
     try {
-      const { token, user } = await createAccount({ name, email, password })
-      setSuccess(`Cuenta creada. Bienvenido ${user?.name || user?.email || 'usuario'}`)
-      console.log('Register successful', { token, user })
-      // Redirigir al home después de registro exitoso
-      navigate('/')
+  const { token, user } = await createAccount({ name, email, password })
+  setSuccess(`Cuenta creada. Bienvenido ${user?.name || user?.email || 'usuario'}`)
+  // Redirigir según rol si es admin
+  const isAdmin = user?.role === 'admin' || user?.is_admin === true
+  navigate(isAdmin ? '/admin' : '/')
     } catch (err) {
       console.error(err)
       setError(err?.response?.data?.message || err.message || 'Error al crear cuenta')
