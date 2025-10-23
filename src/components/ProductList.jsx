@@ -32,12 +32,25 @@ export default function ProductList({ limit = 12, filters = {} }) {
   const items = useMemo(() => {
     let arr = rawItems.slice();
     // Filtros en cliente
-    const min = Number(minPrice);
-    const max = Number(maxPrice);
-    const brand = (brandText || '').trim().toLowerCase();
-    if (!Number.isNaN(min) && minPrice !== '') arr = arr.filter(p => (Number(p.price) || 0) >= min);
-    if (!Number.isNaN(max) && maxPrice !== '') arr = arr.filter(p => (Number(p.price) || 0) <= max);
-    if (brand) arr = arr.filter(p => (p.brand || '').toLowerCase().includes(brand));
+    const min = parseInt(String(minPrice || '').replace(/\D/g, '') || '0', 10)
+    const max = parseInt(String(maxPrice || '').replace(/\D/g, '') || '0', 10)
+    const brand = (brandText || '').trim().toLowerCase()
+    const qClean = (q || '').trim().toLowerCase()
+
+    if (min > 0) arr = arr.filter(p => (parseInt(String(p.price || '').replace(/\D/g, ''), 10) || 0) >= min)
+    if (max > 0) arr = arr.filter(p => (parseInt(String(p.price || '').replace(/\D/g, ''), 10) || 0) <= max)
+
+    // brandText debe filtrar solo por la marca
+    if (brand) arr = arr.filter(p => (String(p.brand || '').toLowerCase().split(/\s+/).some(tok => tok.startsWith(brand))))
+
+    // búsqueda q -> solo por nombre, usando coincidencia startsWith por tokens
+    if (qClean) {
+      const toks = qClean.split(/\s+/).filter(Boolean)
+      arr = arr.filter(p => {
+        const name = (p.name || '').toLowerCase()
+        return toks.every(t => name.split(/\s+/).some(nt => nt.startsWith(t)))
+      })
+    }
 
     // Ordenamiento
     switch (sort) {

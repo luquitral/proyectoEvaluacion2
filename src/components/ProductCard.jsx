@@ -1,12 +1,15 @@
 import ProductImagesSlider from './ProductImagesSlider'
 import { useState } from 'react'
 import { useCart } from '../context/CartContext'
+import { formatCLPCurrency } from './priceFormat.jsx'
+import { useNavigate } from 'react-router-dom'
 
 export default function ProductCard({ product }) {
   const images = product?.images ?? (product?.image ? [product.image] : [])
   const { add } = useCart()
   const [adding, setAdding] = useState(false)
   const [msg, setMsg] = useState(null)
+  const navigate = useNavigate()
 
   async function handleAdd() {
     try {
@@ -25,12 +28,12 @@ export default function ProductCard({ product }) {
   return (
     <article className="card h-100">
       <ProductImagesSlider images={images} alt={product?.name} aspect={'4/3'} />
-      <div className="card-body d-flex flex-column">
+      <div className="card-body d-flex flex-column" style={{ cursor: 'pointer' }} onClick={() => navigate(`/products/${product.id}`)}>
         <h5 className="card-title">{product?.name}</h5>
         <div className="text-muted small">{product?.brand || 'Marca'}</div>
-        <div className="mt-2 fw-bold">${product?.price ?? '0'}</div>
+        <div className="mt-2 fw-bold">{formatCLPCurrency(product?.price ?? 0)}</div>
         <div className="mt-3 d-flex gap-2">
-          <button className="btn btn-sm btn-primary" onClick={handleAdd} disabled={adding}>{adding ? '...' : 'Agregar al carrito'}</button>
+          <button className="btn btn-sm btn-primary" onClick={(e) => { e.stopPropagation(); handleAdd() }} disabled={adding}>{adding ? '...' : 'Agregar al carrito'}</button>
           {msg && <div className="small text-success align-self-center">{msg}</div>}
         </div>
       </div>

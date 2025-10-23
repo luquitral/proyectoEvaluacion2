@@ -1,11 +1,12 @@
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
+import { formatCLPCurrency } from '../components/priceFormat.jsx'
 
 export default function Cart() {
   const { items, loading, setQuantity, remove, total } = useCart()
   const { user } = useAuth()
 
-  // Helpers para mostrar miniaturas de producto (soporta guest/backend)
+  // para mostrar miniaturas de producto
   const storageBase = import.meta.env.VITE_XANO_STORAGE_BASE || import.meta.env.VITE_XANO_STORE_BASE || ''
   const buildUrlFromPath = (path) => {
     if (!path) return null
@@ -55,7 +56,7 @@ export default function Cart() {
               />
               <div>
                 <div className="fw-bold">{it.product?.name || it.product_name || 'Producto'}</div>
-                <div className="small text-muted">Precio: ${it.price ?? it.product?.price ?? 0}</div>
+                <div className="small text-muted">Precio: {formatCLPCurrency(it.price ?? it.product?.price ?? 0)}</div>
               </div>
             </div>
             <div className="d-flex gap-2 align-items-center">
@@ -66,7 +67,7 @@ export default function Cart() {
         ))}
       </div>
       <div className="mt-4 d-flex justify-content-end align-items-center gap-3">
-        <div className="fs-4">Total: <strong>${total}</strong></div>
+        <div className="fs-4">Total: <strong>{formatCLPCurrency(total)}</strong></div>
         <button className="btn btn-primary">Ir a pagar</button>
       </div>
     </div>

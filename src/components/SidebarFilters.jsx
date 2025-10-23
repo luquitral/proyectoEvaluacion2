@@ -1,25 +1,29 @@
-// Sidebar de filtros controlado por props
-// Props esperadas:
-// - filters: { q, minPrice, maxPrice, brandText }
-// - onChange: (partial) => void
-// - availableBrands?: string[] (opcional)
+
+
+import { useMemo, useState } from 'react'
+import { formatCLP } from './priceFormat.jsx'
 
 export default function SidebarFilters({ filters, onChange, availableBrands = [] }) {
   const { q = '', minPrice = '', maxPrice = '', brandText = '' } = filters || {}
+  // Local input states to allow formatted display
+  const [minInput, setMinInput] = useState(minPrice ? String(minPrice) : '')
+  const [maxInput, setMaxInput] = useState(maxPrice ? String(maxPrice) : '')
 
   function update(partial) {
     onChange?.(partial)
   }
 
+  useMemo(() => { setMinInput(minPrice ? String(minPrice) : '') }, [minPrice])
+  useMemo(() => { setMaxInput(maxPrice ? String(maxPrice) : '') }, [maxPrice])
+
   return (
     <div className="d-grid gap-4">
-      {/* Búsqueda por texto */}
       <div className="filter-group">
         <h6 className="fw-bold mb-2 text-primary">Búsqueda</h6>
         <input
           type="search"
           className="form-control form-control-sm"
-          placeholder="Nombre o descripción"
+          placeholder="Nombre"
           value={q}
           onChange={(e) => update({ q: e.target.value })}
         />
@@ -27,32 +31,40 @@ export default function SidebarFilters({ filters, onChange, availableBrands = []
 
       <hr />
 
-      {/* Rango de precio */}
       <div className="filter-group">
         <h6 className="fw-bold mb-2 text-primary">Rango de Precio</h6>
         <div className="input-group input-group-sm mb-2">
           <span className="input-group-text">$</span>
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
             className="form-control"
             placeholder="Mín."
-            value={minPrice}
-            onChange={(e) => update({ minPrice: e.target.value })}
+            value={minInput}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '')
+              setMinInput(raw ? formatCLP(raw) : '')
+              update({ minPrice: raw })
+            }}
           />
           <span className="input-group-text">a</span>
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
             className="form-control"
             placeholder="Máx."
-            value={maxPrice}
-            onChange={(e) => update({ maxPrice: e.target.value })}
+            value={maxInput}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '')
+              setMaxInput(raw ? formatCLP(raw) : '')
+              update({ maxPrice: raw })
+            }}
           />
         </div>
       </div>
 
       <hr />
 
-      {/* Marca (texto o selección) */}
       <div className="filter-group">
         <h6 className="fw-bold mb-2 text-primary">Marca</h6>
         <input

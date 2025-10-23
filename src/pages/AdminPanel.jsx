@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { listProducts, deleteProduct, updateProduct, createProduct, listTeamMembers, adminUpdateUserRole, adminCreateUser } from '../api/xano'
+import { formatCLPCurrency } from '../components/priceFormat.jsx'
 
 export default function AdminPanel() {
   const { token, user } = useAuth()
@@ -128,7 +129,7 @@ export default function AdminPanel() {
                   <div key={p.id} className="list-group-item d-flex justify-content-between align-items-center">
                     <div>
                       <div className="fw-bold">{p.name}</div>
-                      <div className="small text-muted">{p.brand} • ${p.price}</div>
+                      <div className="small text-muted">{p.brand} • {formatCLPCurrency(p.price)}</div>
                     </div>
                     <div className="d-flex gap-2">
                       <button className="btn btn-sm btn-outline-primary" onClick={() => handleEdit(p)}>Editar</button>
