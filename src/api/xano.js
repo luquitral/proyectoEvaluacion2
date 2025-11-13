@@ -60,6 +60,57 @@ export async function getProduct(productId, token) {
   return data
 }
 
+// Orders API
+export async function listOrders({ token, user_id, status, limit, offset } = {}) {
+  const params = {}
+  if (user_id != null) params.user_id = user_id
+  if (status) params.status = status
+  if (limit != null) params.limit = limit
+  if (offset != null) params.offset = offset
+  const config = token ? { headers: { ...makeAuthHeader(token) }, params } : { params }
+  const { data } = await axios.get(`${STORE_BASE}/order`, config)
+  return Array.isArray(data) ? data : (data?.items ?? [])
+}
+
+export async function createOrder(token, payload) {
+  const config = token ? { headers: { ...makeAuthHeader(token), 'Content-Type': 'application/json' } } : { headers: { 'Content-Type': 'application/json' } }
+  const { data } = await axios.post(`${STORE_BASE}/order`, payload, config)
+  return data
+}
+
+export async function getOrder(orderId, token) {
+  const config = token ? { headers: { ...makeAuthHeader(token) } } : {}
+  const { data } = await axios.get(`${STORE_BASE}/order/${orderId}`, config)
+  return data
+}
+
+export async function updateOrder(token, orderId, payload) {
+  const config = token ? { headers: { ...makeAuthHeader(token), 'Content-Type': 'application/json' } } : { headers: { 'Content-Type': 'application/json' } }
+  const { data } = await axios.patch(`${STORE_BASE}/order/${orderId}`, payload, config)
+  return data
+}
+
+// Order products
+export async function createOrderProduct(token, payload) {
+  const config = token ? { headers: { ...makeAuthHeader(token), 'Content-Type': 'application/json' } } : { headers: { 'Content-Type': 'application/json' } }
+  const { data } = await axios.post(`${STORE_BASE}/order_product`, payload, config)
+  return data
+}
+
+export async function listOrderProducts(token, orderId) {
+  const params = orderId ? { order_id: orderId } : {}
+  const config = token ? { headers: { ...makeAuthHeader(token) }, params } : { params }
+  const { data } = await axios.get(`${STORE_BASE}/order_product`, config)
+  return Array.isArray(data) ? data : (data?.items ?? [])
+}
+
+// Shipping (if available)
+export async function createShipping(token, payload) {
+  const config = token ? { headers: { ...makeAuthHeader(token), 'Content-Type': 'application/json' } } : { headers: { 'Content-Type': 'application/json' } }
+  const { data } = await axios.post(`${STORE_BASE}/shipping`, payload, config)
+  return data
+}
+
 // -----------------
 // Cart related APIs
 // -----------------
@@ -111,7 +162,9 @@ export async function listCartProducts(token, cartId) {
 // Lista miembros del equipo (mismo account) desde Members & Accounts
 export async function listTeamMembers(token) {
   if (!ACCOUNT_BASE) throw new Error('ACCOUNT_BASE no configurado (.env: VITE_XANO_ACCOUNT_BASE)')
-  const { data } = await axios.get(`${ACCOUNT_BASE}/account/my_team_members`, { headers: { ...makeAuthHeader(token) } })
+  // Usamos el endpoint /user que es más genérico para listar todos los usuarios.
+  // El endpoint /account/my_team_members requiere que el admin pertenezca a una "cuenta".
+  const { data } = await axios.get(`${ACCOUNT_BASE}/user`, { headers: { ...makeAuthHeader(token) } })
   // Estructura esperada: array de usuarios o {items:[...]}
   return Array.isArray(data) ? data : (data?.items ?? [])
 }
@@ -145,6 +198,69 @@ export async function adminCreateUser(adminToken, { name, email, password, role 
 }
 
 // Eliminar usuario: requiere que crees un endpoint admin en Xano; aquí dejamos placeholder
-export async function adminDeleteUser(/* adminToken, userId */) {
-  throw new Error('No hay endpoint de borrado de usuario. Crea uno en Xano (por ejemplo, /admin/user_delete) y actualiza el cliente.')
+export async function adminDeleteUser(adminToken, userId) {
+  if (!ACCOUNT_BASE) throw new Error('ACCOUNT_BASE no configurado (.env: VITE_XANO_ACCOUNT_BASE)')
+  if (!adminToken) throw new Error('adminToken es requerido')
+  const res = await axios.delete(`${ACCOUNT_BASE}/user/${userId}`, { headers: { ...makeAuthHeader(adminToken) } })
+  return res.data
+}
+
+// -----------------
+// Account / User helpers (Members & Accounts group)
+// -----------------
+export async function createAccount(token, payload) {
+  if (!ACCOUNT_BASE) throw new Error('ACCOUNT_BASE no configurado (.env: VITE_XANO_ACCOUNT_BASE)')
+  const config = token ? { headers: { ...makeAuthHeader(token), 'Content-Type': 'application/json' } } : { headers: { 'Content-Type': 'application/json' } }
+  const { data } = await axios.post(`${ACCOUNT_BASE}/account`, payload, config)
+  return data
+}
+
+export async function getAccountDetails(token) {
+  if (!ACCOUNT_BASE) throw new Error('ACCOUNT_BASE no configurado (.env: VITE_XANO_ACCOUNT_BASE)')
+  const { data } = await axios.get(`${ACCOUNT_BASE}/account/details`, { headers: { ...makeAuthHeader(token) } })
+  return data
+}
+
+export async function getMyTeamMembers(token) {
+  if (!ACCOUNT_BASE) throw new Error('ACCOUNT_BASE no configurado (.env: VITE_XANO_ACCOUNT_BASE)')
+  const { data } = await axios.get(`${ACCOUNT_BASE}/account/my_team_members`, { headers: { ...makeAuthHeader(token) } })
+  return Array.isArray(data) ? data : (data?.items ?? [])
+}
+
+export async function listUsers(token, params = {}) {
+  if (!ACCOUNT_BASE) throw new Error('ACCOUNT_BASE no configurado (.env: VITE_XANO_ACCOUNT_BASE)')
+  const config = token ? { headers: { ...makeAuthHeader(token) }, params } : { params }
+  const { data } = await axios.get(`${ACCOUNT_BASE}/user`, config)
+  return Array.isArray(data) ? data : (data?.items ?? [])
+}
+
+export async function createUser(token, payload) {
+  if (!ACCOUNT_BASE) throw new Error('ACCOUNT_BASE no configurado (.env: VITE_XANO_ACCOUNT_BASE)')
+  const config = token ? { headers: { ...makeAuthHeader(token), 'Content-Type': 'application/json' } } : { headers: { 'Content-Type': 'application/json' } }
+  const { data } = await axios.post(`${ACCOUNT_BASE}/user`, payload, config)
+  return data
+}
+
+export async function getUser(token, userId) {
+  if (!ACCOUNT_BASE) throw new Error('ACCOUNT_BASE no configurado (.env: VITE_XANO_ACCOUNT_BASE)')
+  const { data } = await axios.get(`${ACCOUNT_BASE}/user/${userId}`, { headers: { ...makeAuthHeader(token) } })
+  return data
+}
+
+export async function deleteUser(token, userId) {
+  if (!ACCOUNT_BASE) throw new Error('ACCOUNT_BASE no configurado (.env: VITE_XANO_ACCOUNT_BASE)')
+  const res = await axios.delete(`${ACCOUNT_BASE}/user/${userId}`, { headers: { ...makeAuthHeader(token) } })
+  return res.data
+}
+
+export async function updateUser(token, userId, payload) {
+  if (!ACCOUNT_BASE) throw new Error('ACCOUNT_BASE no configurado (.env: VITE_XANO_ACCOUNT_BASE)')
+  const { data } = await axios.put(`${ACCOUNT_BASE}/user/${userId}`, payload, { headers: { ...makeAuthHeader(token), 'Content-Type': 'application/json' } })
+  return data
+}
+
+export async function editProfile(token, payload) {
+  if (!ACCOUNT_BASE) throw new Error('ACCOUNT_BASE no configurado (.env: VITE_XANO_ACCOUNT_BASE)')
+  const { data } = await axios.patch(`${ACCOUNT_BASE}/user/edit_profile`, payload, { headers: { ...makeAuthHeader(token), 'Content-Type': 'application/json' } })
+  return data
 }

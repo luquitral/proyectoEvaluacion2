@@ -7,7 +7,7 @@ export default function Header() {
   const { user, logoutAxios } = useAuth()
   const navigate = useNavigate()
   const count = items?.reduce((s, it) => s + (it.quantity || 0), 0) || 0
-  const isAdmin = user?.role === 'admin' || user?.is_admin === true
+  const isAdmin = user?.role === 'admin';
   const displayName = user?.name || user?.username || user?.email
 
   function handleLogout() {

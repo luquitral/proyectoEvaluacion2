@@ -1,10 +1,12 @@
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { formatCLPCurrency } from '../components/priceFormat.jsx'
+import { useNavigate } from 'react-router-dom'
 
 export default function Cart() {
   const { items, loading, setQuantity, remove, total } = useCart()
   const { user } = useAuth()
+  const navigate = useNavigate()
 
   // para mostrar miniaturas de producto
   const storageBase = import.meta.env.VITE_XANO_STORAGE_BASE || import.meta.env.VITE_XANO_STORE_BASE || ''
@@ -68,7 +70,7 @@ export default function Cart() {
       </div>
       <div className="mt-4 d-flex justify-content-end align-items-center gap-3">
         <div className="fs-4">Total: <strong>{formatCLPCurrency(total)}</strong></div>
-        <button className="btn btn-primary">Ir a pagar</button>
+        <button className="btn btn-primary" onClick={() => navigate('/checkout')}>Ir a pagar</button>
       </div>
     </div>
   )

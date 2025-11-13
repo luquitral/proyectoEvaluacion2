@@ -245,8 +245,9 @@ export function AuthProvider({ children }) {
     setToken, // Setter de token (por si se necesita)
     setUser, // Setter de usuario
     loginAxios, // Función de login con Axios
-    logoutAxios, // Función de logout con Axios
-  }), [token, user, expiresAt])
+    logoutAxios, // Función de logout con Axios,
+    createAccount, // Función para crear cuenta
+  }), [token, user, expiresAt]);
 
   // Renderizamos el proveedor con el valor calculado
   return (

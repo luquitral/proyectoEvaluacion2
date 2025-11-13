@@ -71,6 +71,11 @@ export function CartProvider({ children }) {
     }
 
     // Autenticado: backend
+    const existingItem = items.find(it => it.product_id === productId);
+    if (existingItem) {
+      return setQuantity(existingItem.id, existingItem.quantity + quantity);
+    }
+
     let currentCart = cart
     if (!currentCart) {
       currentCart = await getOrCreateCart(token)
@@ -96,32 +101,29 @@ export function CartProvider({ children }) {
   }
 
   async function setQuantity(itemId, quantity) {
+    const newQuantity = Math.max(1, Number(quantity) || 1);
+
+    // Optimistic UI update
+    setItems(prevItems =>
+      prevItems.map(it => (it.id === itemId ? { ...it, quantity: newQuantity } : it))
+    );
+
     if (!token) {
-      const current = readGuest()
-      const idx = current.findIndex(it => it.id === itemId)
+      const current = readGuest();
+      const idx = current.findIndex(it => it.id === itemId);
       if (idx >= 0) {
-        current[idx].quantity = Math.max(1, Number(quantity) || 1)
-        writeGuest(current)
-        setItems(current)
+        current[idx].quantity = newQuantity;
+        writeGuest(current);
       }
-      return
+      return;
     }
-    const updated = await updateCartProduct(token, itemId, quantity)
+
     try {
-      let cps = await listCartProducts(token, cart?.id)
-      const needFetch = cps.filter(it => !it.product && it.product_id)
-      if (needFetch.length > 0) {
-        const uniqIds = [...new Set(needFetch.map(i => i.product_id))]
-        const fetched = await Promise.all(uniqIds.map(id => getProduct(id, token).catch(() => null)))
-        const map = new Map()
-        uniqIds.forEach((id, idx) => { if (fetched[idx]) map.set(id, fetched[idx]) })
-        cps = cps.map(it => it.product || !it.product_id ? it : { ...it, product: map.get(it.product_id) || it.product })
-      }
-      setItems(cps || [])
+      await updateCartProduct(token, itemId, newQuantity);
     } catch (e) {
-      console.info('Could not refresh cart items after update', e?.message || e)
+      console.error('Failed to update quantity on backend', e);
+      // Optional: Revert state or show error to user
     }
-    return updated
   }
 
   async function remove(itemId) {
