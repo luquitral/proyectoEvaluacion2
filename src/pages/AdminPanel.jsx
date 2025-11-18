@@ -4,7 +4,7 @@ import {
   listProducts, deleteProduct, updateProduct, createProduct, 
   listTeamMembers, adminUpdateUserRole, adminCreateUser, 
   uploadImages, attachImagesToProduct, adminDeleteUser,
-  listOrders, updateOrder, listOrderProducts
+  listOrders, updateOrder, listOrderProducts, updateUserStatus
 } from '../api/xano'
 import { formatCLPCurrency } from '../components/priceFormat.jsx'
 
@@ -175,6 +175,15 @@ export default function AdminPanel() {
     }
   }
 
+  async function handleChangeStatus(u, status) {
+    try {
+      await updateUserStatus(token, u.id, status)
+      setTeam(team.map(x => x.id === u.id ? { ...x, status } : x))
+    } catch (e) {
+      alert('No se pudo actualizar el estado (revisa permisos y endpoint user)')
+    }
+  }
+
   // ---- Órdenes: acciones ----
   async function changeOrderStatus(o, status) {
     if (!token) return
@@ -324,12 +333,19 @@ export default function AdminPanel() {
                   <div key={u.id} className="list-group-item d-flex justify-content-between align-items-center">
                     <div>
                       <div className="fw-bold">{u.name || u.username || u.email}</div>
-                      <div className="small text-muted">{u.email} • id: {u.id}</div>
+                      <div className="small text-muted">
+                        {u.email} • id: {u.id}
+                        {u.status === 'blocked' && <span className="badge bg-danger ms-2">BLOQUEADO</span>}
+                      </div>
                     </div>
                     <div className="d-flex gap-2 align-items-center">
                       <select className="form-select form-select-sm" style={{ width: 140 }} value={u.role || 'user'} onChange={(e) => handleChangeRole(u, e.target.value)}>
                         <option value="user">Usuario</option>
                         <option value="admin">Admin</option>
+                      </select>
+                      <select className="form-select form-select-sm" style={{ width: 140 }} value={u.status || 'active'} onChange={(e) => handleChangeStatus(u, e.target.value)}>
+                        <option value="active">Activo</option>
+                        <option value="blocked">Bloqueado</option>
                       </select>
                       <button className="btn btn-sm btn-outline-danger" onClick={async () => {
                         if (!confirm('Eliminar usuario?')) return
