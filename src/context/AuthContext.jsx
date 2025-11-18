@@ -153,6 +153,20 @@ export function AuthProvider({ children }) {
         // Si falla todo, usamos un user mínimo
         me = data?.user || data?.profile || { email }
       }
+  
+  // 3) Verificar si el usuario está bloqueado
+  if (me?.status === 'blocked') {
+    // Limpiar el token y datos antes de lanzar el error
+    setToken('')
+    setUser(null)
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('auth_user')
+    localStorage.removeItem('auth_exp')
+    const blockedError = new Error('Su cuenta ha sido bloqueada. Comuníquese con soporte soporete@404store.com')
+    blockedError.isBlocked = true
+    throw blockedError
+  }
+  
   const normalized = normalizeUser(me)
   setUser(normalized)
   return { token: newToken, user: normalized }
@@ -183,6 +197,20 @@ export function AuthProvider({ children }) {
       // Intentar obtener perfil tras el signup
       let me = await getMeWithFallback(newToken)
       if (!me) me = data?.user || { name, email }
+  
+  // Verificar si el usuario está bloqueado
+  if (me?.status === 'blocked') {
+    // Limpiar el token y datos antes de lanzar el error
+    setToken('')
+    setUser(null)
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('auth_user')
+    localStorage.removeItem('auth_exp')
+    const blockedError = new Error('Su cuenta ha sido bloqueada. Comuníquese con soporte soporete@404store.com')
+    blockedError.isBlocked = true
+    throw blockedError
+  }
+  
   const normalized = normalizeUser(me)
   setUser(normalized)
   return { token: newToken, user: normalized, raw: data }

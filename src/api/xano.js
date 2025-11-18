@@ -259,6 +259,12 @@ export async function updateUser(token, userId, payload) {
   return data
 }
 
+export async function updateUserStatus(token, userId, status) {
+  if (!ACCOUNT_BASE) throw new Error('ACCOUNT_BASE no configurado (.env: VITE_XANO_ACCOUNT_BASE)')
+  const { data } = await axios.patch(`${ACCOUNT_BASE}/user/${userId}`, { status }, { headers: { ...makeAuthHeader(token), 'Content-Type': 'application/json' } })
+  return data
+}
+
 export async function editProfile(token, payload) {
   if (!ACCOUNT_BASE) throw new Error('ACCOUNT_BASE no configurado (.env: VITE_XANO_ACCOUNT_BASE)')
   const { data } = await axios.patch(`${ACCOUNT_BASE}/user/edit_profile`, payload, { headers: { ...makeAuthHeader(token), 'Content-Type': 'application/json' } })
