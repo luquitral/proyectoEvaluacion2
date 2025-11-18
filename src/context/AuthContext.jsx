@@ -162,7 +162,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_user')
     localStorage.removeItem('auth_exp')
-    const blockedError = new Error('Su cuenta ha sido bloqueada. Comuníquese con soporte soporte@404store.com')
+    const blockedError = new Error('Su cuenta ha sido bloqueada. Comuníquese con soporte soporete@404store.com')
     blockedError.isBlocked = true
     throw blockedError
   }
@@ -206,7 +206,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_user')
     localStorage.removeItem('auth_exp')
-    const blockedError = new Error('Su cuenta ha sido bloqueada. Comuníquese con soporte soporte@404store.com')
+    const blockedError = new Error('Su cuenta ha sido bloqueada. Comuníquese con soporte soporete@404store.com')
     blockedError.isBlocked = true
     throw blockedError
   }
