@@ -90,6 +90,12 @@ export async function updateOrder(token, orderId, payload) {
   return data
 }
 
+export async function deleteOrder(token, orderId) {
+  const config = token ? { headers: { ...makeAuthHeader(token) } } : {}
+  const res = await axios.delete(`${STORE_BASE}/order/${orderId}`, config)
+  return res.data
+}
+
 // Order products
 export async function createOrderProduct(token, payload) {
   const config = token ? { headers: { ...makeAuthHeader(token), 'Content-Type': 'application/json' } } : { headers: { 'Content-Type': 'application/json' } }

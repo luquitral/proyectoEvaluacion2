@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { 
   listProducts, deleteProduct, updateProduct, createProduct, 
-  listTeamMembers, adminUpdateUserRole, adminCreateUser, 
+  listTeamMembers, adminUpdateUserRole, createUser, updateUser, 
   uploadImages, attachImagesToProduct, adminDeleteUser,
-  listOrders, updateOrder, listOrderProducts
+  listOrders, updateOrder, listOrderProducts, deleteOrder
 } from '../api/xano'
 import { formatCLPCurrency } from '../components/priceFormat.jsx'
 
 export default function AdminPanel() {
-  const { token, user } = useAuth()
+  const { token, user, updateUser } = useAuth()
   const [active, setActive] = useState('products') // 'products' | 'users' | 'orders'
 
   // Productos
@@ -25,7 +25,7 @@ export default function AdminPanel() {
   const [team, setTeam] = useState([])
   const [uLoading, setULoading] = useState(false)
   const [uErr, setUErr] = useState('')
-  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'user' })
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'client' })
   const [userRetryKey, setUserRetryKey] = useState(0)
 
   // Órdenes
@@ -158,7 +158,9 @@ export default function AdminPanel() {
   async function handleCreateUser(e) {
     e.preventDefault()
     try {
-      const { user: created } = await adminCreateUser(token, newUser)
+      // Crear usuario vía Members & Accounts (no crea credenciales de login, solo el registro)
+      const payload = { name: newUser.name, email: newUser.email, role: newUser.role, status: 'active' }
+      const created = await createUser(token, payload)
       if (created) setTeam([created, ...team])
       setNewUser({ name: '', email: '', password: '', role: 'user' })
     } catch (e) {
@@ -168,10 +170,12 @@ export default function AdminPanel() {
 
   async function handleChangeRole(u, role) {
     try {
-      await adminUpdateUserRole(token, u.id, role)
+      // Usamos la función updateUser del contexto, que utiliza PUT /user/{id}
+      // Enviamos el objeto de usuario completo (...u) con el nuevo rol para evitar errores de "Missing param"
+      await updateUser(u.id, { ...u, role })
       setTeam(team.map(x => x.id === u.id ? { ...x, role } : x))
     } catch (e) {
-      alert('No se pudo actualizar el rol (revisa permisos y endpoint admin/user_role)')
+      alert('No se pudo actualizar el rol. Error: ' + (e.message || 'Desconocido'))
     }
   }
 
@@ -304,11 +308,11 @@ export default function AdminPanel() {
                   <input type="email" className="form-control" placeholder="Email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} required />
                 </div>
                 <div className="col-sm-3">
-                  <input type="password" className="form-control" placeholder="Contraseña" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} required />
+                  <input type="password" className="form-control" placeholder="Contraseña (opcional para signup)" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} />
                 </div>
                 <div className="col-sm-2">
                   <select className="form-select" value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
-                    <option value="user">Usuario</option>
+                    <option value="client">Usuario</option>
                     <option value="admin">Admin</option>
                   </select>
                 </div>
@@ -325,12 +329,21 @@ export default function AdminPanel() {
                     <div>
                       <div className="fw-bold">{u.name || u.username || u.email}</div>
                       <div className="small text-muted">{u.email} • id: {u.id}</div>
+                      <div className="small">Estado: <span className={`badge ${u.status === 'blocked' ? 'bg-danger' : 'bg-success'}`}>{u.status || 'active'}</span></div>
                     </div>
                     <div className="d-flex gap-2 align-items-center">
-                      <select className="form-select form-select-sm" style={{ width: 140 }} value={u.role || 'user'} onChange={(e) => handleChangeRole(u, e.target.value)}>
-                        <option value="user">Usuario</option>
+                      <select className="form-select form-select-sm" style={{ width: 140 }} value={u.role || 'client'} onChange={(e) => handleChangeRole(u, e.target.value)}>
+                        <option value="client">Usuario</option>
                         <option value="admin">Admin</option>
                       </select>
+                      <button className={`btn btn-sm ${u.status === 'blocked' ? 'btn-warning' : 'btn-outline-warning'}`} onClick={async () => {
+                        try {
+                          const nextStatus = u.status === 'blocked' ? 'active' : 'blocked'
+                          // Enviamos el objeto completo para cumplir con el requisito del endpoint PUT
+                          const updatedUser = await updateUser(u.id, { ...u, status: nextStatus })
+                          setTeam(team.map(x => x.id === u.id ? updatedUser : x))
+                        } catch (e) { alert('No se pudo actualizar el estado (active/blocked)') }
+                      }}>{u.status === 'blocked' ? 'Desbloquear' : 'Bloquear'}</button>
                       <button className="btn btn-sm btn-outline-danger" onClick={async () => {
                         if (!confirm('Eliminar usuario?')) return
                         try {
@@ -367,6 +380,15 @@ export default function AdminPanel() {
                             <button className="btn btn-sm btn-danger" onClick={() => changeOrderStatus(o, 'rejected')}>Rechazar</button>
                           </>
                         )}
+                        <button className="btn btn-sm btn-outline-danger" onClick={async () => {
+                          if (!confirm(`Eliminar orden #${o.id}?`)) return
+                          try {
+                            await deleteOrder(token, o.id)
+                            setOrders(orders.filter(x => x.id !== o.id))
+                          } catch (e) {
+                            alert('No se pudo eliminar la orden')
+                          }
+                        }}>Eliminar</button>
                       </div>
                     </div>
                     {expandedOrder === o.id && (

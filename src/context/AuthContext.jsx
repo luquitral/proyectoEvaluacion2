@@ -4,9 +4,9 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 
 // URLs base para los endpoints de Xano — leídas desde variables de entorno de Vite con fallback
-const AUTH_BASE = import.meta.env.VITE_XANO_AUTH_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:PDQSRKQT'
-const STORE_BASE = import.meta.env.VITE_XANO_STORE_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:3Xncgo9I'
-const MEMBERS_BASE = import.meta.env.VITE_XANO_MEMBERS_BASE || import.meta.env.VITE_XANO_ACCOUNT_BASE || ''
+const AUTH_BASE = import.meta.env.VITE_XANO_AUTH_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:8rC1wTkz'
+const STORE_BASE = import.meta.env.VITE_XANO_STORE_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:S-bkhAOA'
+const MEMBERS_BASE = import.meta.env.VITE_XANO_MEMBERS_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:AlRPuub7'
 // TTL de respaldo para tokens JWE sin 'exp' legible (por defecto 86400s)
 const TOKEN_TTL_SEC = 86400 // 24 horas en segundos
 // Lista opcional de emails admin (fallback mientras /auth/me se corrige)
@@ -153,9 +153,16 @@ export function AuthProvider({ children }) {
         // Si falla todo, usamos un user mínimo
         me = data?.user || data?.profile || { email }
       }
-  const normalized = normalizeUser(me)
-  setUser(normalized)
-  return { token: newToken, user: normalized }
+
+      // Revisar si el usuario está bloqueado
+      if (me.status === 'blocked') {
+        await logoutAxios() // Limpiar cualquier dato de sesión parcial
+        throw new Error('Tu cuenta ha sido bloqueada. Por favor, contacta a soporte@404store.com')
+      }
+
+      const normalized = normalizeUser(me)
+      setUser(normalized)
+      return { token: newToken, user: normalized }
     } catch (error) {
       console.error('Error de login:', error?.response?.data || error.message)
       throw error
@@ -171,27 +178,62 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('auth_token') // Borramos token
     localStorage.removeItem('auth_user') // Borramos usuario
     localStorage.removeItem('auth_exp') // Borramos expiración
+    try {
+      // Limpiar carritos locales para evitar inconsistencias entre cuentas
+      const keys = Object.keys(localStorage)
+      for (const k of keys) {
+        if (k.startsWith('auth_cart_')) localStorage.removeItem(k)
+      }
+      localStorage.removeItem('guest_cart_items')
+    } catch {}
   }
 
   // Crear cuenta / registro (Xano - endpoint puede variar)
   async function createAccount({ name, email, password }) {
     try {
-      // En el template de Xano, el endpoint es /auth/signup
-      const { data } = await axios.post(`${AUTH_BASE}/auth/signup`, { name, email, password })
-      const newToken = data?.authToken || data?.token || data?.jwt || data?.access_token || ''
-      if (newToken) setToken(newToken)
-      // Intentar obtener perfil tras el signup
-      let me = await getMeWithFallback(newToken)
-      if (!me) me = data?.user || { name, email }
-  const normalized = normalizeUser(me)
-  setUser(normalized)
-  return { token: newToken, user: normalized, raw: data }
+      // Usamos el endpoint POST /user para crear el usuario.
+      // El login automático se elimina para evitar el error de sintaxis de contraseña.
+      // El usuario deberá iniciar sesión manualmente después del registro.
+      await axios.post(`${MEMBERS_BASE}/user`, {
+        name,
+        email,
+        password,
+        role: 'client', // Asignamos 'client' por defecto
+        status: 'active' // Asignamos 'active' por defecto
+      })
+
+      // No se hace login automático. Se retorna un objeto vacío para indicar éxito.
+      return {}
     } catch (err) {
       // Re-lanzamos para que la UI gestione el error
+      console.error('Error al crear la cuenta:', err?.response?.data || err.message)
       throw err
     }
   }
 
+  // Actualizar información de un usuario (perfil, rol, etc.)
+  async function updateUser(userId, userData) {
+    try {
+      // Revertido a PUT, ya que el backend no tiene un endpoint PATCH.
+      const { data } = await axios.put(
+        `${MEMBERS_BASE}/user/${userId}`,
+        userData,
+        { headers: makeAuthHeader(token) }
+      )
+
+      // Si el usuario actualizado es el usuario logueado, actualizamos el estado local
+      if (user && user.id === userId) {
+        // El endpoint devuelve el objeto actualizado, lo usamos para refrescar el estado
+        const normalized = normalizeUser(data)
+        setUser(normalized)
+      }
+
+      return data
+    } catch (err) {
+      console.error('Error al actualizar el usuario:', err?.response?.data || err.message)
+      throw err
+    }
+  }
 
   // Renovación del token usando Axios (endpoint puede variar en Xano)
   async function refreshAxios() {
@@ -247,6 +289,7 @@ export function AuthProvider({ children }) {
     loginAxios, // Función de login con Axios
     logoutAxios, // Función de logout con Axios,
     createAccount, // Función para crear cuenta
+    updateUser, // Función para actualizar usuario
   }), [token, user, expiresAt]);
 
   // Renderizamos el proveedor con el valor calculado

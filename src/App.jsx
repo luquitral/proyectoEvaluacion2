@@ -11,6 +11,7 @@ import AdminPanel from './pages/AdminPanel.jsx'
 import ProductDetail from './pages/ProductDetail.jsx'
 import Checkout from './pages/Checkout.jsx'
 import MyOrders from './pages/MyOrders.jsx'
+import Profile from './pages/Profile.jsx'
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
   <Route path="/admin" element={<AdminPanel />} />
   <Route path="/checkout" element={<Checkout />} />
   <Route path="/my-orders" element={<MyOrders />} />
+  <Route path="/profile" element={<Profile />} />
   <Route path="/products/:id" element={<ProductDetail />} />
       </Routes>
       <Footer />

@@ -32,8 +32,9 @@ export default function Header() {
           <div className="d-flex gap-2 align-items-center"> 
             {user ? (
               <div className="d-flex align-items-center gap-2">
-                <span className="text-muted">Hola{displayName ? `, ${displayName}` : ''}</span>
+                <Link className="text-muted text-decoration-none" to="/profile">Hola{displayName ? `, ${displayName}` : ''}</Link>
                 {isAdmin && <Link className="btn btn-outline-secondary btn-sm" to="/admin">Admin</Link>}
+                {!isAdmin && <Link className="btn btn-outline-info btn-sm" to="/profile">Perfil</Link>}
                 <button className="btn btn-outline-danger btn-sm" onClick={handleLogout}>Salir</button>
               </div>
             ) : (
