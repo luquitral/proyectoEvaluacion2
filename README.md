@@ -64,7 +64,7 @@ El backend de la aplicación está construido con **Xano**. A continuación se d
 
 ## Usuarios de Prueba y Credenciales
 
-Para facilitar la prueba de la aplicación, se han creado los siguientes usuarios con credenciales dummy:
+Para facilitar la prueba de la aplicación, se han creado los siguientes usuarios con credenciales:
 
 -   **Administrador:**
     -   **Email:** `admin@duocuc.cl`
